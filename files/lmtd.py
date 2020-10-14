@@ -70,9 +70,10 @@ def cp(t):
 
     return cp
 
+"""
 def df_one(df):
 
     t_hot_mean= (df.loc[:,'T1 Hot In'] + df.loc[:,'T2 Hot Out'])/2
     t_cold_mean = (df.loc[:,'T3 Cold In'] + df.loc[:,'T4 Cold Out'])/2
 
-    cp_hot = lambda x: cp()
+    """
