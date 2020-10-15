@@ -60,9 +60,9 @@ def log_mean_temp(t_hot_in, t_hot_out, t_cold_in, t_cold_out):
     return delta_tlm
 
 def cp(t):
-    first = 6 * 10**(-6) * t**4
+    first = 6 * 10**(-9) * t**4
     second = 10**(-6) * t**3
-    third = 10**(-5) * t**2
+    third = 7.0487 * 10**(-5) * t**2
     fourth = 2.4403 * 10**(-3) * t
     fifth = 4.2113
 
@@ -70,10 +70,89 @@ def cp(t):
 
     return cp
 
-"""
-def df_one(df):
 
-    t_hot_mean= (df.loc[:,'T1 Hot In'] + df.loc[:,'T2 Hot Out'])/2
-    t_cold_mean = (df.loc[:,'T3 Cold In'] + df.loc[:,'T4 Cold Out'])/2
+def df_1(df):
 
-    """
+    # Calculete temperature in and out mean in order no calculte specific heat 
+    t_mean_hot= (df.iloc[:,2] + df.iloc[:,3])/2
+    t_mean_cold = (df.iloc[:,4] + df.iloc[:,5])/2
+
+    # Calculate specific heat
+    cp_hot = cp(t_mean_hot)
+    cp_cold = cp(t_mean_cold)
+
+    # Calculate the temperature difference between entry and exit point
+    t_delta_hot = delta_temp(df.iloc[:,2],df.iloc[:,3])
+    t_delta_cold = delta_temp(df.iloc[:,4],df.iloc[:,5])
+
+    # Calculate the transfer heat rate from both fluids
+    q_hot = - 1 * (df.iloc[:,0] * cp_hot * t_delta_hot) * 1000
+    q_cold = - 1 * (df.iloc[:,1] * cp_cold * t_delta_cold) * 1000
+
+    # % heat lost
+    heat_lost = q_cold / q_hot * 100
+
+    # Creat dict
+    d = {'Specific Heat Hot Fluid [kJ/kg.K]':cp_hot,
+        'Specific Heat Cold Fluid [kJ/kg.K]': cp_cold,
+        'Transfer Heat Rate Hot Fluid [W]': q_hot,
+        'Transfer Heat Rate Cold Fluid [W]': q_cold,
+        'Heat Lost [%]':heat_lost
+        }
+
+    df_new = pd.DataFrame(data=d)
+
+    return df_new
+
+
+def df_2(df):
+
+    # Calculate log mean temperature difference
+    delta_lmtd = log_mean_temp(df.iloc[:,2],df.iloc[:,3],df.iloc[:,4],df.iloc[:,5])
+
+    # Calculate temperature in and out mean in order no calculte specific heat
+    t_mean_hot= (df.iloc[:,2] + df.iloc[:,3])/2
+    t_mean_cold = (df.iloc[:,4] + df.iloc[:,5])/2
+
+    # Calculate specific heat
+    cp_hot = cp(t_mean_hot)
+    cp_cold = cp(t_mean_cold)
+
+    # Calculate heat capacity
+    heat_capacity_hot = heat_capacity(df.iloc[:,0],cp_hot)
+    heat_capacity_cold = heat_capacity(df.iloc[:,1],cp_cold)
+
+    # Find minimum heat capacity
+    c_min = []
+    for hot, cold in zip(heat_capacity_hot, heat_capacity_cold):
+        if hot <= cold:
+            c_min.append(hot)
+        else:
+            c_min.append(cold)
+
+    # Calculate the maximum transfer heat rate
+    q_max = c_min * (delta_temp(df.iloc[:,2],df.iloc[:,5]))
+
+    # Calculate the transfer heat rate from cold fluid
+    q_cold = - 1 * (df.iloc[:,1] * cp_cold * delta_temp(df.iloc[:,4],df.iloc[:,5]))
+
+    # Calculate the effectiveness
+    epsilon = q_cold/q_max
+
+    # Calculate global heat coeficient and area
+    ua = q_cold/delta_lmtd
+
+    # Calculate NUT
+    nut = ua/c_min
+
+    # Create dict
+    d = {'Log Mean Temperature Difference [°C]' : delta_lmtd,
+        'Heat Capacity Hot [W/K]' : heat_capacity_hot,
+        'Heat Capacity Cold [W/K]' : heat_capacity_cold,
+        'Effectiveness' : epsilon,
+        'NUT' : nut}
+
+    # Create DataFrame
+    df_new = pd.DataFrame(data=d)
+
+    return df_new
